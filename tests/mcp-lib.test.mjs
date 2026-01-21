@@ -98,7 +98,15 @@ test('mcp-lib: ensureDesktopRunning spawns if serverId mismatches and then recov
     return { unref() {} };
   };
 
-  const conn = await ensureDesktopRunning({ stateDir: dir, fetchImpl, spawnImpl, timeoutMs: 3000, showTabs: true });
+  const exists = () => true;
+  const conn = await ensureDesktopRunning({
+    stateDir: dir,
+    fetchImpl,
+    spawnImpl,
+    timeoutMs: 3000,
+    showTabs: true,
+    fileExistsImpl: exists
+  });
   assert.ok(spawned >= 1);
   assert.equal(conn.serverId, 'sid-new');
 });

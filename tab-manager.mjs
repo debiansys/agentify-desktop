@@ -17,13 +17,15 @@ class Mutex {
 }
 
 export class TabManager {
-  constructor({ createController, maxTabs = 12, onNeedsAttention, windowDefaults, userAgent, onChanged }) {
+  constructor({ createController, maxTabs = 12, onNeedsAttention, windowDefaults, userAgent, clientHints, onChanged }) {
     this.createController = createController;
     this.maxTabs = Math.max(1, Number(maxTabs) || 12);
     this.onNeedsAttention = onNeedsAttention;
     this.windowDefaults = windowDefaults || { width: 1100, height: 800, show: false, title: 'Agentify Desktop' };
     this.userAgent = typeof userAgent === 'string' && userAgent.trim() ? userAgent.trim() : null;
     this.onChanged = typeof onChanged === 'function' ? onChanged : null;
+    this.clientHints = clientHints && typeof clientHints === 'object' ? { ...clientHints } : null;
+    this.clientHintsSessions = new WeakSet();
 
     this.tabs = new Map(); // tabId -> { id, key, name, vendorId, vendorName, url, win, controller, createdAt, lastUsedAt }
     this.keyToId = new Map();
@@ -55,6 +57,21 @@ export class TabManager {
       if (this.userAgent) {
         try {
           win.webContents.setUserAgent(this.userAgent);
+        } catch {}
+      }
+      if (this.clientHints) {
+        try {
+          const session = win.webContents.session;
+          if (session && !this.clientHintsSessions.has(session)) {
+            session.webRequest.onBeforeSendHeaders((details, callback) => {
+              const headers = { ...(details.requestHeaders || {}) };
+              for (const [key, value] of Object.entries(this.clientHints)) {
+                headers[key] = value;
+              }
+              callback({ requestHeaders: headers });
+            });
+            this.clientHintsSessions.add(session);
+          }
         } catch {}
       }
       win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

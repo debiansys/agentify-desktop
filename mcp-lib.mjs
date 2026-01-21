@@ -66,6 +66,7 @@ export async function ensureDesktopRunning({
   stateDir,
   fetchImpl = fetch,
   spawnImpl = spawn,
+  fileExistsImpl = fileExists,
   timeoutMs = 30_000,
   showTabs = false
 }) {
@@ -81,8 +82,8 @@ export async function ensureDesktopRunning({
 
   const electronBin = path.resolve('node_modules', '.bin', process.platform === 'win32' ? 'electron.cmd' : 'electron');
   const entry = path.join(__dirname, 'main.mjs');
-  if (!(await fileExists(electronBin))) throw new Error('missing_electron_binary');
-  if (!(await fileExists(entry))) throw new Error('missing_desktop_entry');
+  if (!(await fileExistsImpl(electronBin))) throw new Error('missing_electron_binary');
+  if (!(await fileExistsImpl(entry))) throw new Error('missing_desktop_entry');
 
   spawnImpl(electronBin, [entry], {
     stdio: 'ignore',
