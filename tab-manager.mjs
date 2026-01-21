@@ -64,8 +64,8 @@ export class TabManager {
         try {
           const session = win.webContents.session;
           if (session && !this.clientHintsSessions.has(session)) {
-            const passThrough = (headers) => callback({ requestHeaders: headers || {} });
             session.webRequest.onBeforeSendHeaders((details, callback) => {
+              const passThrough = (headers) => callback({ requestHeaders: headers || {} });
               if (!details?.url || !/^https?:/i.test(details.url)) {
                 return passThrough(details.requestHeaders);
               }
