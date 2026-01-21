@@ -25,6 +25,7 @@ export class TabManager {
     this.userAgent = typeof userAgent === 'string' && userAgent.trim() ? userAgent.trim() : null;
     this.onChanged = typeof onChanged === 'function' ? onChanged : null;
     this.clientHints = clientHints && typeof clientHints === 'object' ? { ...clientHints } : null;
+    // Track sessions to avoid registering duplicate webRequest handlers per session.
     this.clientHintsSessions = new WeakSet();
 
     this.tabs = new Map(); // tabId -> { id, key, name, vendorId, vendorName, url, win, controller, createdAt, lastUsedAt }
@@ -64,6 +65,12 @@ export class TabManager {
           const session = win.webContents.session;
           if (session && !this.clientHintsSessions.has(session)) {
             session.webRequest.onBeforeSendHeaders((details, callback) => {
+              if (!details?.url || !/^https?:/i.test(details.url)) {
+                return callback({ requestHeaders: details.requestHeaders || {} });
+              }
+              if (details.resourceType && !['mainFrame', 'subFrame'].includes(details.resourceType)) {
+                return callback({ requestHeaders: details.requestHeaders || {} });
+              }
               const headers = { ...(details.requestHeaders || {}) };
               for (const [key, value] of Object.entries(this.clientHints)) {
                 headers[key] = value;
