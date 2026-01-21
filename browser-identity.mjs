@@ -1,4 +1,6 @@
 const DEFAULT_CHROME_VERSION = '120.0.0.0';
+const CLIENT_HINTS_BRAND = 'Not A(Brand';
+const CLIENT_HINTS_BRAND_VERSION = '99';
 
 function normalizeChromeVersion(chromeVersion) {
   if (typeof chromeVersion === 'string' && chromeVersion.trim()) {
@@ -37,7 +39,7 @@ export function buildChromeClientHints({ platform, chromeVersion, runtime = proc
   const resolvedChromeVersion = chromeVersion ?? runtime.versions?.chrome;
   const major = chromeMajorVersion(resolvedChromeVersion);
   return {
-    'sec-ch-ua': `"Not A(Brand";v="99", "Google Chrome";v="${major}", "Chromium";v="${major}"`,
+    'sec-ch-ua': `"${CLIENT_HINTS_BRAND}";v="${CLIENT_HINTS_BRAND_VERSION}", "Google Chrome";v="${major}", "Chromium";v="${major}"`,
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': `"${platformClientHint(resolvedPlatform)}"`
   };
