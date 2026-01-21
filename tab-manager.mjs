@@ -17,13 +17,16 @@ class Mutex {
 }
 
 export class TabManager {
-  constructor({ createController, maxTabs = 12, onNeedsAttention, windowDefaults, userAgent, onChanged }) {
+  constructor({ createController, maxTabs = 12, onNeedsAttention, windowDefaults, userAgent, clientHints, onChanged }) {
     this.createController = createController;
     this.maxTabs = Math.max(1, Number(maxTabs) || 12);
     this.onNeedsAttention = onNeedsAttention;
     this.windowDefaults = windowDefaults || { width: 1100, height: 800, show: false, title: 'Agentify Desktop' };
     this.userAgent = typeof userAgent === 'string' && userAgent.trim() ? userAgent.trim() : null;
     this.onChanged = typeof onChanged === 'function' ? onChanged : null;
+    this.clientHints = clientHints && typeof clientHints === 'object' ? { ...clientHints } : null;
+    // Track session listeners + ref counts to clean up handlers when tabs close.
+    this.clientHintsSessions = new WeakMap();
 
     this.tabs = new Map(); // tabId -> { id, key, name, vendorId, vendorName, url, win, controller, createdAt, lastUsedAt }
     this.keyToId = new Map();
@@ -55,6 +58,34 @@ export class TabManager {
       if (this.userAgent) {
         try {
           win.webContents.setUserAgent(this.userAgent);
+        } catch {}
+      }
+      if (this.clientHints) {
+        try {
+          const session = win.webContents.session;
+          if (session) {
+            let entry = this.clientHintsSessions.get(session);
+            if (!entry) {
+              const listener = (details, callback) => {
+                const passThrough = (headers) => callback({ requestHeaders: headers || {} });
+                if (!details?.url || !/^https?:/i.test(details.url)) {
+                  return passThrough(details.requestHeaders);
+                }
+                if (details.resourceType && !['mainFrame', 'subFrame'].includes(details.resourceType)) {
+                  return passThrough(details.requestHeaders);
+                }
+                const headers = { ...(details.requestHeaders || {}) };
+                for (const [key, value] of Object.entries(this.clientHints)) {
+                  headers[key] = value;
+                }
+                return passThrough(headers);
+              };
+              session.webRequest.onBeforeSendHeaders(listener);
+              entry = { listener, refCount: 0 };
+              this.clientHintsSessions.set(session, entry);
+            }
+            entry.refCount += 1;
+          }
         } catch {}
       }
       win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -93,6 +124,23 @@ export class TabManager {
         this.tabs.delete(id);
         if (tab.key) this.keyToId.delete(tab.key);
         this.forcedFocusTabs.delete(id);
+        if (this.clientHints) {
+          try {
+            const session = win.webContents?.session;
+            const entry = session ? this.clientHintsSessions.get(session) : null;
+            if (entry) {
+              entry.refCount -= 1;
+              if (entry.refCount <= 0) {
+                if (typeof session.webRequest.off === 'function') {
+                  session.webRequest.off('onBeforeSendHeaders', entry.listener);
+                } else if (typeof session.webRequest.removeListener === 'function') {
+                  session.webRequest.removeListener('onBeforeSendHeaders', entry.listener);
+                }
+                this.clientHintsSessions.delete(session);
+              }
+            }
+          } catch {}
+        }
         this.onChanged?.();
       });
 

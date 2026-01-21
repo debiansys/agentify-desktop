@@ -131,6 +131,7 @@ Agentify Desktop can optionally run a local “orchestrator” that watches a Ch
 - **Image downloads:** prefers `<img>` elements in the latest assistant message; some UI modes may render images via nonstandard elements.
 - **Parallelism model:** “tabs” are separate windows; they can run in parallel without stealing focus unless a human check is required.
 - **Security knobs:** default is loopback-only + bearer token; token rotation and shutdown are supported via MCP tools.
+ - **Login flows:** Agentify Desktop sets a Chrome-like user-agent plus client hints to avoid WebView-only blocks in OAuth flows (e.g., Google SSO).
 
 ## Build installers (unsigned)
 ```bash

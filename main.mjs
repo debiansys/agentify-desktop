@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 import { ChatGPTController } from './chatgpt-controller.mjs';
+import { buildChromeClientHints, buildChromeUserAgent } from './browser-identity.mjs';
 import { startHttpApi } from './http-api.mjs';
 import { TabManager } from './tab-manager.mjs';
 import { defaultStateDir, ensureToken, readSettings, writeSettings, defaultSettings, writeState } from './state.mjs';
@@ -24,17 +25,6 @@ function argValue(name) {
   const idx = process.argv.indexOf(name);
   if (idx === -1) return null;
   return process.argv[idx + 1] || null;
-}
-
-function buildChromeUserAgent() {
-  const platform =
-    process.platform === 'darwin'
-      ? 'Macintosh; Intel Mac OS X 10_15_7'
-      : process.platform === 'win32'
-        ? 'Windows NT 10.0; Win64; x64'
-        : 'X11; Linux x86_64';
-  const chromeVersion = process.versions?.chrome || '120.0.0.0';
-  return `Mozilla/5.0 (${platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
 }
 
 async function loadSelectors(stateDir) {
@@ -76,13 +66,15 @@ async function main() {
   const stateDir = argValue('--state-dir') || defaultStateDir();
   const basePort = Number(argValue('--port') || process.env.AGENTIFY_DESKTOP_PORT || 0);
   const startMinimized = argFlag('--start-minimized');
+  const userAgent = buildChromeUserAgent();
+  const clientHints = buildChromeClientHints();
 
   // Reduce obvious automation fingerprints (best-effort).
   try {
     app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
   } catch {}
   try {
-    app.userAgentFallback = buildChromeUserAgent();
+    app.userAgentFallback = userAgent;
   } catch {}
   try {
     process.title = 'Agentify Desktop';
@@ -162,7 +154,8 @@ async function main() {
   const tabs = new TabManager({
     maxTabs: Number(process.env.AGENTIFY_DESKTOP_MAX_TABS || 12),
     onNeedsAttention,
-    userAgent: app.userAgentFallback,
+    userAgent,
+    clientHints,
     onChanged: () => {
       try {
         if (controlWin && !controlWin.isDestroyed()) controlWin.webContents.send('agentify:tabsChanged');
