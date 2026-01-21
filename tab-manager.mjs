@@ -64,18 +64,19 @@ export class TabManager {
         try {
           const session = win.webContents.session;
           if (session && !this.clientHintsSessions.has(session)) {
+            const passThrough = (headers) => callback({ requestHeaders: headers || {} });
             session.webRequest.onBeforeSendHeaders((details, callback) => {
               if (!details?.url || !/^https?:/i.test(details.url)) {
-                return callback({ requestHeaders: details.requestHeaders || {} });
+                return passThrough(details.requestHeaders);
               }
               if (details.resourceType && !['mainFrame', 'subFrame'].includes(details.resourceType)) {
-                return callback({ requestHeaders: details.requestHeaders || {} });
+                return passThrough(details.requestHeaders);
               }
               const headers = { ...(details.requestHeaders || {}) };
               for (const [key, value] of Object.entries(this.clientHints)) {
                 headers[key] = value;
               }
-              callback({ requestHeaders: headers });
+              return passThrough(headers);
             });
             this.clientHintsSessions.add(session);
           }

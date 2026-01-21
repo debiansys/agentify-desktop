@@ -25,16 +25,20 @@ function platformClientHint(platform) {
   return 'Linux';
 }
 
-export function buildChromeUserAgent({ platform = process.platform, chromeVersion = process.versions?.chrome } = {}) {
-  const version = normalizeChromeVersion(chromeVersion);
-  return `Mozilla/5.0 (${platformToken(platform)}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${version} Safari/537.36`;
+export function buildChromeUserAgent({ platform, chromeVersion, runtime = process } = {}) {
+  const resolvedPlatform = platform ?? runtime.platform;
+  const resolvedChromeVersion = chromeVersion ?? runtime.versions?.chrome;
+  const version = normalizeChromeVersion(resolvedChromeVersion);
+  return `Mozilla/5.0 (${platformToken(resolvedPlatform)}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${version} Safari/537.36`;
 }
 
-export function buildChromeClientHints({ platform = process.platform, chromeVersion = process.versions?.chrome } = {}) {
-  const major = chromeMajorVersion(chromeVersion);
+export function buildChromeClientHints({ platform, chromeVersion, runtime = process } = {}) {
+  const resolvedPlatform = platform ?? runtime.platform;
+  const resolvedChromeVersion = chromeVersion ?? runtime.versions?.chrome;
+  const major = chromeMajorVersion(resolvedChromeVersion);
   return {
     'sec-ch-ua': `"Not A(Brand";v="99", "Google Chrome";v="${major}", "Chromium";v="${major}"`,
     'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': `"${platformClientHint(platform)}"`
+    'sec-ch-ua-platform': `"${platformClientHint(resolvedPlatform)}"`
   };
 }
